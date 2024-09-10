@@ -12,11 +12,23 @@ import {
 import * as bs58 from "bs58";
 import { getPublicKeyAsync, signAsync } from "../ed25119-scalar";
 
+const DEVNET_URL = "https://api.devnet.solana.com";
+const MAINNET_URL = "https://api.mainnet-beta.solana.com";
+
+const getNetworkUrl = (useMainnet: boolean) => {
+  return useMainnet ? MAINNET_URL : DEVNET_URL;
+};
+
 /*
  * Fetches the SOL balance of the given address.
  */
-export async function getSolBalance(address: string): Promise<number> {
-  return await fetch("https://api.devnet.solana.com", {
+export async function getSolBalance(
+  address: string,
+  useMainnet: boolean
+): Promise<number> {
+  const networkUrl = getNetworkUrl(useMainnet);
+
+  return await fetch(networkUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -69,8 +81,11 @@ export async function signAndSendSolTransaction(
   scalarKey: string,
   fromAddress: string,
   toAddress: string,
-  amount: number
+  amount: number,
+  useMainnet: boolean
 ): Promise<string> {
+  const network = getNetworkUrl(useMainnet);
+
   // Create public keys from address strings
   const fromPublicKey = new PublicKey(fromAddress);
   const toPublicKey = new PublicKey(toAddress);
@@ -80,7 +95,7 @@ export async function signAndSendSolTransaction(
     "hex"
   );
 
-  const connection = new Connection("https://api.devnet.solana.com");
+  const connection = new Connection(network);
   const { blockhash } = await connection.getLatestBlockhash("finalized");
   let tx = new Transaction({
     recentBlockhash: blockhash,
