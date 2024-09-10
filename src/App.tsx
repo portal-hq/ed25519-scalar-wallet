@@ -5,6 +5,7 @@ import {
   getSolBalance,
   signAndSendSolTransaction,
 } from "./libs/solana";
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 
 function App() {
   const [scalarKey, setScalarKey] = useState<string>("");
@@ -13,6 +14,7 @@ function App() {
   const [recipient, setRecipient] = useState<string>("");
   const [transferAmount, setTransferAmount] = useState<number>(0);
   const [txhash, setTxhash] = useState<string | null>(null);
+  const [isMainnet, setIsMainnet] = useState<boolean>(true);
 
   /*
    * Import the Solana wallet using the ed25519 scalar private key
@@ -22,8 +24,22 @@ function App() {
     const address = await getPublicKey(scalarKey);
     setWalletAddress(address);
 
-    const solBalance = await getSolBalance(address);
+    const solBalance = await getSolBalance(address, isMainnet);
     setWalletBalance(solBalance);
+  };
+
+  /*
+   * Toggle which network to use.
+   */
+  const toggleIsMainnet = async () => {
+    const updatedNetwork = !isMainnet;
+    setIsMainnet(updatedNetwork);
+
+    if (walletAddress) {
+      setWalletBalance(null);
+      const solBalance = await getSolBalance(walletAddress, updatedNetwork);
+      setWalletBalance(solBalance);
+    }
   };
 
   /*
@@ -38,7 +54,8 @@ function App() {
       scalarKey,
       walletAddress,
       recipient,
-      transferAmount
+      transferAmount,
+      isMainnet
     );
 
     setTxhash(txhash);
@@ -64,6 +81,18 @@ function App() {
         {/* Show the Solana address */}
         {walletAddress && (
           <>
+            {/* Toggle mainnet or devnet */}
+            <ToggleButtonGroup
+              color="primary"
+              value={isMainnet ? "mainnet" : "devnet"}
+              exclusive
+              onChange={toggleIsMainnet}
+              aria-label="Platform"
+            >
+              <ToggleButton value="mainnet">Mainnet</ToggleButton>
+              <ToggleButton value="devnet">Devnet</ToggleButton>
+            </ToggleButtonGroup>
+
             {/* Show the Solana address and link the address to the Solana explorer */}
             <h1>Wallet Details</h1>
             <p>
