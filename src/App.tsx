@@ -7,19 +7,27 @@ import {
   signAndSendSPLTransferTransaction,
 } from "./libs/solana";
 import {
-  alpha,
   Box,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
+  createTheme,
+  PaletteMode,
+  ThemeProvider,
+  Button,
+  Container,
+  Typography,
+  TextField,
+  Link,
 } from "@mui/material";
 import { signAsync } from "./libs/ed25119-scalar";
 import * as bs58 from "bs58";
+import React from "react";
 
 function App() {
-  const [scalarKey, setScalarKey] = useState<string>(
-    "7QouaVEmauRJgEhLXEaj3Et8VZXfuYzHYLw35FDZVFau"
-  );
+  const defaultTheme = createTheme({ palette: { mode } });
+
+  const [scalarKey, setScalarKey] = useState<string>("");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [recipient, setRecipient] = useState<string>("");
@@ -38,6 +46,10 @@ function App() {
    * and fetch the balance.
    */
   const importSolanaWallet = async () => {
+    if (!scalarKey) {
+      return;
+    }
+
     const address = await getPublicKey(scalarKey);
     setWalletAddress(address);
 
@@ -63,7 +75,7 @@ function App() {
    * Transfer SOL to the recipient address.
    */
   const transferSol = async () => {
-    if (!walletAddress) {
+    if (!walletAddress || !recipient) {
       return;
     }
 
@@ -82,7 +94,7 @@ function App() {
    * Transfer SPL token to the recipient address.
    */
   const transferSpl = async () => {
-    if (!walletAddress) {
+    if (!walletAddress || !splRecipient || !splTokenAddress) {
       return;
     }
 
@@ -102,7 +114,9 @@ function App() {
    * Sign an arbitrary message.
    */
   const signMessage = async () => {
-    const serializedMessage = message;
+    if (!message) {
+      return;
+    }
 
     // prep the private key hex
     const privateKeyHex = Buffer.from(bs58.default.decode(scalarKey)).toString(
@@ -110,7 +124,7 @@ function App() {
     );
 
     // Convert the serialized transaction to a hex string
-    const serializedHex = Buffer.from(serializedMessage).toString("hex");
+    const serializedHex = Buffer.from(message).toString("hex");
     const transactionSignature = await signAsync(serializedHex, privateKeyHex);
 
     // Convert uint8 array to Buffer
@@ -119,81 +133,98 @@ function App() {
   };
 
   return (
-    <Box
-      component="main"
-      sx={(theme) => ({
-        flexGrow: 1,
-        backgroundColor: alpha(theme.palette.background.default, 1),
-        overflow: "auto",
-      })}
-    >
-      <Stack
-        spacing={2}
-        sx={{
-          alignItems: "center",
-          mx: 3,
-          pb: 10,
-          mt: { xs: 8, md: 0 },
-        }}
-      >
-        {/* Show the private key input */}
-        {!walletAddress && (
-          <>
+    <ThemeProvider theme={defaultTheme}>
+      {/* Show the private key input */}
+      {!walletAddress && (
+        <Container
+          maxWidth="sm"
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100vh",
+          }}
+        >
+          <Box
+            sx={{
+              width: "100%",
+              bgcolor: "background.paper",
+              boxShadow: 3,
+              p: 4,
+              borderRadius: 2,
+            }}
+          >
             {/* Form to input ed25119 scalar private key and an import button */}
-            <p>Enter ed25519-scalar private key</p>
-            <input
-              type="text"
-              placeholder="ed25519 scalar private key"
+            <Typography variant="h5" component="h1" gutterBottom>
+              Enter ed25519-scalar private key
+            </Typography>
+            <TextField
+              fullWidth
+              label="Input"
+              variant="outlined"
               onChange={(e) => setScalarKey(e.target.value)}
               value={scalarKey}
             />
-            <button onClick={() => importSolanaWallet()}>Import</button>
-          </>
-        )}
+            <Button onClick={() => importSolanaWallet()}>Import</Button>
+          </Box>
+        </Container>
+      )}
 
-        {/* Show the Main Dashboard */}
-        {walletAddress && (
-          <>
-            {/* Header */}
-            <Stack
-              direction="row"
-              sx={{
-                display: { xs: "none", md: "flex" },
-                width: "100%",
-                alignItems: { xs: "flex-start", md: "center" },
-                justifyContent: "space-between",
-                maxWidth: { sm: "100%", md: "1700px" },
-                pt: 1.5,
-              }}
-              spacing={2}
+      {/* Show the Main Dashboard */}
+      {walletAddress && (
+        <Container
+          style={{
+            height: "100vh",
+          }}
+        >
+          {/* Header */}
+          <Stack
+            direction="row"
+            sx={{
+              display: { xs: "none", md: "flex" },
+              width: "100%",
+              alignItems: { xs: "flex-start", md: "center" },
+              justifyContent: "space-between",
+              maxWidth: { sm: "100%", md: "1700px" },
+              pt: 1.5,
+            }}
+            spacing={2}
+          >
+            {/* Toggle mainnet or devnet */}
+            <ToggleButtonGroup
+              color="primary"
+              value={isMainnet ? "mainnet" : "devnet"}
+              exclusive
+              onChange={toggleIsMainnet}
+              aria-label="Platform"
             >
-              <Stack direction="row" sx={{ gap: 1 }}>
-                {/* Toggle mainnet or devnet */}
-                <ToggleButtonGroup
-                  color="primary"
-                  value={isMainnet ? "mainnet" : "devnet"}
-                  exclusive
-                  onChange={toggleIsMainnet}
-                  aria-label="Platform"
-                >
-                  <ToggleButton value="mainnet">Mainnet</ToggleButton>
-                  <ToggleButton value="devnet">Devnet</ToggleButton>
-                </ToggleButtonGroup>
-              </Stack>
-            </Stack>
+              <ToggleButton value="mainnet">Mainnet</ToggleButton>
+              <ToggleButton value="devnet">Devnet</ToggleButton>
+            </ToggleButtonGroup>
+            <Typography variant="h4">Solana Wallet</Typography>
+          </Stack>
 
-            {/* Show the Solana address and link the address to the Solana explorer */}
+          <Container
+            maxWidth="sm"
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
             <Stack
               sx={{
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <h1>Wallet Details</h1>
-              <p>
-                Solana Address:{" "}
-                <a
-                  className="App-link"
+              {/* Wallet Details */}
+              <Typography variant="h5" sx={{ mt: 4 }}>
+                Wallet Details
+              </Typography>
+              <Typography variant="body1">
+                Solana Address:
+                <Link
                   href={`https://explorer.solana.com/address/${walletAddress}${
                     isMainnet ? "" : "?cluster=devnet"
                   }`}
@@ -201,16 +232,14 @@ function App() {
                   rel="noopener noreferrer"
                 >
                   {walletAddress}
-                </a>
-              </p>
+                </Link>
+              </Typography>
 
-              {/* Show the Solana balance, link to assets, and transaction history */}
-              <p>
+              <Typography variant="body1">
                 SOL Balance:{" "}
                 {walletBalance !== null ? walletBalance : "Loading..."}
-              </p>
-              <a
-                className="App-link"
+              </Typography>
+              <Link
                 href={`https://explorer.solana.com/address/${walletAddress}${
                   isMainnet ? "" : "?cluster=devnet"
                 }`}
@@ -218,9 +247,8 @@ function App() {
                 rel="noopener noreferrer"
               >
                 Transaction History
-              </a>
-              <a
-                className="App-link"
+              </Link>
+              <Link
                 href={`https://explorer.solana.com/address/${walletAddress}/tokens${
                   isMainnet ? "" : "?cluster=devnet"
                 }`}
@@ -228,33 +256,42 @@ function App() {
                 rel="noopener noreferrer"
               >
                 Assets
-              </a>
+              </Link>
 
-              {/* Form to transfer SOL to another account */}
-              <h1>Transfer SOL</h1>
-              <label htmlFor="recipient">Recipient Address</label>
-              <input
-                type="text"
-                placeholder="Recipient Address"
-                id="recipient"
-                onChange={(e) => setRecipient(e.target.value)}
+              {/* Transfer SOL */}
+              <Typography variant="h5" sx={{ mt: 4 }}>
+                Transfer SOL
+              </Typography>
+              <TextField
+                label="Recipient Address"
+                variant="outlined"
+                fullWidth
                 value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                sx={{ mt: 2 }}
               />
-
-              <label htmlFor="amount">Amount</label>
-              <input
+              <TextField
+                label="Amount"
+                variant="outlined"
                 type="number"
-                placeholder="Amount"
-                id="amount"
-                onChange={(e) => setTransferAmount(parseFloat(e.target.value))}
+                fullWidth
                 value={transferAmount}
+                onChange={(e) => setTransferAmount(parseFloat(e.target.value))}
+                sx={{ mt: 2 }}
+                inputProps={{ min: 0, step: "any" }}
               />
-              <button onClick={() => transferSol()}>Transfer</button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={transferSol}
+                sx={{ mt: 2 }}
+              >
+                Transfer
+              </Button>
               {txhash && (
-                <p>
-                  Transaction Hash:{" "}
-                  <a
-                    className="App-link"
+                <Typography variant="body1">
+                  Transaction Hash:
+                  <Link
                     href={`https://explorer.solana.com/tx/${txhash}${
                       isMainnet ? "" : "?cluster=devnet"
                     }`}
@@ -262,47 +299,54 @@ function App() {
                     rel="noopener noreferrer"
                   >
                     {txhash}
-                  </a>
-                </p>
+                  </Link>
+                </Typography>
               )}
 
-              {/* Form to transfer SPL tokens to another account */}
-              <h1>Transfer SPL Token</h1>
-
-              <label htmlFor="spl-token-address">Token Address</label>
-              <input
-                type="text"
-                placeholder="Token Address"
-                id="spl-token-address"
-                onChange={(e) => setSplTokenAddress(e.target.value)}
+              {/* Transfer SPL Token */}
+              <Typography variant="h5" sx={{ mt: 4 }}>
+                Transfer SPL Token
+              </Typography>
+              <TextField
+                label="Token Address"
+                variant="outlined"
+                fullWidth
                 value={splTokenAddress}
+                onChange={(e) => setSplTokenAddress(e.target.value)}
+                sx={{ mt: 2 }}
               />
-
-              <label htmlFor="spl-recipient">Recipient Address</label>
-              <input
-                type="text"
-                placeholder="Recipient Address"
-                id="spl-recipient"
-                onChange={(e) => setSplRecipient(e.target.value)}
+              <TextField
+                label="Recipient Address"
+                variant="outlined"
+                fullWidth
                 value={splRecipient}
+                onChange={(e) => setSplRecipient(e.target.value)}
+                sx={{ mt: 2 }}
               />
-
-              <label htmlFor="spl-amount">Amount</label>
-              <input
+              <TextField
+                label="Amount"
+                variant="outlined"
                 type="number"
-                placeholder="Amount"
-                id="spl-amount"
+                fullWidth
+                value={splTransferAmount}
                 onChange={(e) =>
                   setSplTransferAmount(parseFloat(e.target.value))
                 }
-                value={splTransferAmount}
+                sx={{ mt: 2 }}
+                inputProps={{ min: 0 }}
               />
-              <button onClick={() => transferSpl()}>Transfer</button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={transferSpl}
+                sx={{ mt: 2 }}
+              >
+                Transfer
+              </Button>
               {splTxhash && (
-                <p>
-                  Transaction Hash:{" "}
-                  <a
-                    className="App-link"
+                <Typography variant="body1">
+                  Transaction Hash:
+                  <Link
                     href={`https://explorer.solana.com/tx/${splTxhash}${
                       isMainnet ? "" : "?cluster=devnet"
                     }`}
@@ -310,28 +354,40 @@ function App() {
                     rel="noopener noreferrer"
                   >
                     {splTxhash}
-                  </a>
-                </p>
+                  </Link>
+                </Typography>
               )}
 
-              {/* Form to sign arbitrary message */}
-              <h1>Sign Message</h1>
-              <label htmlFor="message">Message</label>
-              <input
-                type="text"
-                placeholder="Recipient Address"
-                id="message"
-                onChange={(e) => setMessage(e.target.value)}
+              {/* Sign Message */}
+              <Typography variant="h5" sx={{ mt: 4 }}>
+                Sign Message
+              </Typography>
+              <TextField
+                label="Message"
+                variant="outlined"
+                fullWidth
                 value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                sx={{ mt: 2 }}
               />
-
-              <button onClick={() => signMessage()}>Sign</button>
-              {signedMessage && <p>Signaure: 0x{signedMessage}</p>}
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={signMessage}
+                sx={{ mt: 2 }}
+              >
+                Sign
+              </Button>
+              {signedMessage && (
+                <Typography variant="body1">
+                  Signature: 0x{signedMessage}
+                </Typography>
+              )}
             </Stack>
-          </>
-        )}
-      </Stack>
-    </Box>
+          </Container>
+        </Container>
+      )}
+    </ThemeProvider>
   );
 }
 
