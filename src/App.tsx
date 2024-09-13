@@ -22,7 +22,6 @@ import {
 } from "@mui/material";
 import { signAsync } from "./libs/ed25119-scalar";
 import * as bs58 from "bs58";
-import React from "react";
 
 function App() {
   const mode: PaletteMode = "light";
