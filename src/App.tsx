@@ -25,6 +25,7 @@ import * as bs58 from "bs58";
 import React from "react";
 
 function App() {
+  const mode: PaletteMode = "light";
   const defaultTheme = createTheme({ palette: { mode } });
 
   const [scalarKey, setScalarKey] = useState<string>("");
