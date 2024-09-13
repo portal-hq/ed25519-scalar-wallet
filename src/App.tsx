@@ -19,6 +19,7 @@ import {
   Typography,
   TextField,
   Link,
+  useMediaQuery,
 } from "@mui/material";
 import { signAsync } from "./libs/ed25119-scalar";
 import * as bs58 from "bs58";
@@ -26,6 +27,8 @@ import * as bs58 from "bs58";
 function App() {
   const mode: PaletteMode = "light";
   const defaultTheme = createTheme({ palette: { mode } });
+
+  const isSmallScreen = useMediaQuery("(max-width:600px)"); // For screens smaller than 600px
 
   const [scalarKey, setScalarKey] = useState<string>("");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -50,11 +53,16 @@ function App() {
       return;
     }
 
-    const address = await getPublicKey(scalarKey);
-    setWalletAddress(address);
+    try {
+      const address = await getPublicKey(scalarKey);
+      setWalletAddress(address);
 
-    const solBalance = await getSolBalance(address, isMainnet);
-    setWalletBalance(solBalance);
+      const solBalance = await getSolBalance(address, isMainnet);
+      setWalletBalance(solBalance);
+    } catch (e) {
+      console.log(e);
+      alert("Invalid private key");
+    }
   };
 
   /*
@@ -181,7 +189,7 @@ function App() {
           <Stack
             direction="row"
             sx={{
-              display: { xs: "none", md: "flex" },
+              display: "flex",
               width: "100%",
               alignItems: { xs: "flex-start", md: "center" },
               justifyContent: "space-between",
@@ -216,14 +224,22 @@ function App() {
               sx={{
                 justifyContent: "center",
                 alignItems: "center",
+                width: "100%",
               }}
             >
               {/* Wallet Details */}
               <Typography variant="h5" sx={{ mt: 4 }}>
                 Wallet Details
               </Typography>
-              <Typography variant="body1">
-                Solana Address:
+              <Typography
+                variant="body1"
+                sx={{
+                  whiteSpace: "normal", // Allow text to wrap
+                  wordWrap: "break-word", // Break long words
+                  overflowWrap: "break-word", // Break long continuous text
+                }}
+              >
+                Solana Address:{" "}
                 <Link
                   href={`https://explorer.solana.com/address/${walletAddress}${
                     isMainnet ? "" : "?cluster=devnet"
@@ -231,7 +247,11 @@ function App() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {walletAddress}
+                  {isSmallScreen
+                    ? walletAddress.slice(0, 10) +
+                      "..." +
+                      walletAddress.slice(-10)
+                    : walletAddress}
                 </Link>
               </Typography>
 
