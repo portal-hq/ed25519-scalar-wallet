@@ -239,7 +239,7 @@ function App() {
                   overflowWrap: "break-word", // Break long continuous text
                 }}
               >
-                Solana Address:{" "}
+                Address:{" "}
                 <Link
                   href={`https://explorer.solana.com/address/${walletAddress}${
                     isMainnet ? "" : "?cluster=devnet"
