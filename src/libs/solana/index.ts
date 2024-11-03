@@ -5,8 +5,8 @@
 import {
   Connection,
   LAMPORTS_PER_SOL,
+  ParsedAccountData,
   PublicKey,
-  SendTransactionError,
   SystemProgram,
   Transaction,
   TransactionMessage,
@@ -18,7 +18,9 @@ import {
   createAssociatedTokenAccountInstruction,
   createTransferCheckedInstruction,
   getAssociatedTokenAddress,
+  getTokenMetadata,
   TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 
 const DEVNET_URL =
@@ -147,6 +149,42 @@ export async function signAndSendSolTransaction(
 }
 
 /*
+ * Fetch SPL token info
+ */
+export async function getSPLTokenInfo(
+  tokenAddress: string,
+  useMainnet: boolean
+): Promise<any> {
+  const network = getNetworkUrl(useMainnet);
+  const connection = new Connection(network);
+
+  const tokenPublicKey = new PublicKey(tokenAddress);
+  const accountInfo = await connection.getParsedAccountInfo(tokenPublicKey);
+
+  const is2022Program =
+    (accountInfo?.value?.data as ParsedAccountData).program ===
+    "spl-token-2022";
+
+  let name = "";
+  let symbol = "";
+
+  if (is2022Program) {
+    const metadata = await getTokenMetadata(
+      connection,
+      tokenPublicKey,
+      "finalized",
+      TOKEN_2022_PROGRAM_ID
+    );
+    name = metadata?.name || "";
+    symbol = metadata?.symbol || "";
+  } else {
+    console.log("Could not fetch token metadata for non-2022 program");
+  }
+
+  return { name, symbol };
+}
+
+/*
  * Execute transfer of an SPL-22 token to another owner.
  */
 export async function signAndSendSPLTransferTransaction(
@@ -168,7 +206,6 @@ export async function signAndSendSPLTransferTransaction(
   const connection = new Connection(network);
 
   const tokenPublicKey = new PublicKey(tokenAddress);
-  const PYUSD_DECIMALS = 6;
 
   // Sender & receiver PublicKeys from address strings
   const senderPublicKey = new PublicKey(sender);
@@ -177,31 +214,64 @@ export async function signAndSendSPLTransferTransaction(
   // Instructions array to hold the transaction instructions
   const instructions = [];
 
+  // Get token account & mint info
+  const tokenInfo = await connection.getParsedAccountInfo(tokenPublicKey);
+
+  if (!tokenInfo) {
+    throw Error(
+      `No token account found for SPL token with address (${tokenPublicKey.toString()})
+       on Solana ${
+         useMainnet ? "mainnet" : "testnet"
+       }. Check the SPL address is correct and that the SPL token exists before trying to send.`
+    );
+  }
+
+  const programData = tokenInfo.value?.data as ParsedAccountData;
+
+  if (!programData) {
+    throw Error(
+      `No program data found for SPL token with address (${tokenPublicKey.toString()})
+       on Solana ${
+         useMainnet ? "mainnet" : "testnet"
+       }. Check the SPL address is correct and that the SPL token exists before trying to send.`
+    );
+  }
+
+  // set the token program Id based on the token program
+  const tokenProgramId =
+    programData.program === "spl-token-2022"
+      ? TOKEN_2022_PROGRAM_ID
+      : TOKEN_PROGRAM_ID;
+  const tokenDecimals = programData.parsed.info.decimals;
+
   // Each SPL token has an associated token account for each owner
-  // Check if the sender address has an associated token account for PYUSD
+  // Check if the sender address has an associated token account for the SPL token
   const senderTokenAddress = await getAssociatedTokenAddress(
     tokenPublicKey,
     senderPublicKey,
     false,
-    TOKEN_2022_PROGRAM_ID
+    tokenProgramId
   );
 
   const senderAccountInfo = await connection.getAccountInfo(senderTokenAddress);
   if (!senderAccountInfo) {
     // If there is no senderAccountInfo then the sender does not have any
-    // PYUSD to send.
-    console.error(
-      `Sender ${sender} does not have a token account for PYUSD (${tokenPublicKey.toString()}). They likely do not any PYUSD to send. Get some PYUSD before trying to send.`
+    // the SPL token to send.
+    throw Error(
+      `Sender ${sender} does not have a token account for SPL token with address (${tokenPublicKey.toString()})
+       on Solana ${
+         useMainnet ? "mainnet" : "testnet"
+       }. Check the SPL address is correct, that the current mainnet
+       toggle is correct, and that the sender has the specified SPL token before trying to send.`
     );
-    return null;
   }
 
-  // Check if the recipient address has an associated token account for PYUSD
+  // Check if the recipient address has an associated token account for the SPL token
   const receiverTokenAddress = await getAssociatedTokenAddress(
     tokenPublicKey,
     recipientPublicKey,
     false,
-    TOKEN_2022_PROGRAM_ID
+    tokenProgramId
   );
 
   const receiverAccountInfo = await connection.getAccountInfo(
@@ -209,7 +279,7 @@ export async function signAndSendSPLTransferTransaction(
   );
   if (!receiverAccountInfo) {
     // If there is no receiverAccountInfo then we need to create and pay for
-    // a token account for the recipient before we can transfer PYUSD to them.
+    // a token account for the recipient before we can transfer the SPL token to them.
     console.log(
       `Creating new token account at ${receiverTokenAddress} for ${recipient} on ${tokenPublicKey.toString()} paid for by ${sender}`
     );
@@ -218,7 +288,7 @@ export async function signAndSendSPLTransferTransaction(
       receiverTokenAddress, // Associated token account address
       recipientPublicKey, // Owner of the associated token account
       tokenPublicKey,
-      TOKEN_2022_PROGRAM_ID
+      tokenProgramId
     );
 
     // Add the create token account instruction to the instructions array
@@ -229,17 +299,17 @@ export async function signAndSendSPLTransferTransaction(
   // Fetch recent blockhash
   const blockhash = await connection.getLatestBlockhash("finalized");
 
-  // Create the transfer instruction to send PYUSD from sender
+  // Create the transfer instruction to send the SPL token from the sender
   // to recipient
   const transferInstruction = createTransferCheckedInstruction(
     senderTokenAddress, // sender token account
     tokenPublicKey, // mint PublicKey
     receiverTokenAddress, // receiver token account
     senderPublicKey, // owner PublicKey
-    amount * Math.pow(10, PYUSD_DECIMALS), // amount in minimum units
-    PYUSD_DECIMALS, // decimals
+    amount * Math.pow(10, tokenDecimals), // amount in minimum units
+    tokenDecimals, // decimals
     [], // signers - empty because we're going to be signing when we submit
-    TOKEN_2022_PROGRAM_ID // programId
+    tokenProgramId // programId
   );
 
   // Add the create token account instruction to the instructions array
@@ -275,12 +345,7 @@ export async function signAndSendSPLTransferTransaction(
 
   const rawTransaction = transaction.serialize();
 
-  try {
-    const hash = await connection.sendRawTransaction(rawTransaction);
-    return hash;
-  } catch (e) {
-    console.log(e);
-    (e as SendTransactionError).getLogs(connection);
-  }
-  return null;
+  // Send the transaction to the network
+  const hash = await connection.sendRawTransaction(rawTransaction);
+  return hash;
 }

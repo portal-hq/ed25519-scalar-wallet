@@ -3,6 +3,7 @@ import "./App.css";
 import {
   getPublicKey,
   getSolBalance,
+  getSPLTokenInfo,
   signAndSendSolTransaction,
   signAndSendSPLTransferTransaction,
 } from "./libs/solana";
@@ -39,10 +40,12 @@ function App() {
   const [splRecipient, setSplRecipient] = useState<string>("");
   const [splTransferAmount, setSplTransferAmount] = useState<number>(0);
   const [splTxhash, setSplTxhash] = useState<string | null>(null);
+  const [splError, setSplError] = useState<string | null>(null);
   const [isMainnet, setIsMainnet] = useState<boolean>(true);
   const [message, setMessage] = useState<string>("");
   const [signedMessage, setSignedMessage] = useState<string>("");
   const [splTokenAddress, setSplTokenAddress] = useState<string>("");
+  const [splTokenInfo, setSplTokenInfo] = useState<any | null>(null);
 
   /*
    * Import the Solana wallet using the ed25519 scalar private key
@@ -68,13 +71,18 @@ function App() {
   /*
    * Toggle which network to use.
    */
-  const toggleIsMainnet = async () => {
-    const updatedNetwork = !isMainnet;
-    setIsMainnet(updatedNetwork);
+  const toggleIsMainnet = async (event: React.MouseEvent, value: any) => {
+    const target = event.target as HTMLButtonElement;
+    const buttonValue = target.value;
 
-    if (walletAddress) {
+    const updatedIsMainnet = buttonValue === "mainnet";
+    const didChange = updatedIsMainnet !== isMainnet;
+
+    setIsMainnet(updatedIsMainnet);
+
+    if (walletAddress && didChange) {
       setWalletBalance(null);
-      const solBalance = await getSolBalance(walletAddress, updatedNetwork);
+      const solBalance = await getSolBalance(walletAddress, updatedIsMainnet);
       setWalletBalance(solBalance);
     }
   };
@@ -106,16 +114,22 @@ function App() {
       return;
     }
 
-    const txhash = await signAndSendSPLTransferTransaction(
-      scalarKey,
-      walletAddress,
-      splRecipient,
-      splTransferAmount,
-      splTokenAddress,
-      isMainnet
-    );
-
-    setSplTxhash(txhash);
+    try {
+      const txhash = await signAndSendSPLTransferTransaction(
+        scalarKey,
+        walletAddress,
+        splRecipient,
+        splTransferAmount,
+        splTokenAddress,
+        isMainnet
+      );
+      setSplTxhash(txhash);
+      setSplError(null);
+    } catch (e: any) {
+      console.error(e);
+      setSplTxhash(null);
+      setSplError(e.message);
+    }
   };
 
   /*
@@ -200,7 +214,7 @@ function App() {
           >
             {/* Toggle mainnet or devnet */}
             <ToggleButtonGroup
-              color="primary"
+              color="secondary"
               value={isMainnet ? "mainnet" : "devnet"}
               exclusive
               onChange={toggleIsMainnet}
@@ -229,7 +243,8 @@ function App() {
             >
               {/* Wallet Details */}
               <Typography variant="h5" sx={{ mt: 4 }}>
-                Wallet Details
+                Wallet Details on Solana{" "}
+                <b>{isMainnet ? "Mainnet" : "Testnet"}</b>
               </Typography>
               <Typography
                 variant="body1"
@@ -306,7 +321,7 @@ function App() {
                 onClick={transferSol}
                 sx={{ mt: 2 }}
               >
-                Transfer
+                Transfer SOL
               </Button>
               {txhash && (
                 <Typography variant="body1">
@@ -327,12 +342,51 @@ function App() {
               <Typography variant="h5" sx={{ mt: 4 }}>
                 Transfer SPL Token
               </Typography>
+
+              <Stack
+                direction="row"
+                sx={{
+                  display: "flex",
+                  alignItems: { xs: "flex-start", md: "center" },
+                  justifyContent: "space-between",
+                  pt: 1.5,
+                }}
+                spacing={2}
+              >
+                <Typography variant="body1">
+                  Token:{" "}
+                  {!!splTokenInfo && splTokenInfo?.name !== "" && (
+                    <Link
+                      href={`https://explorer.solana.com/address/${splTokenAddress}${
+                        isMainnet ? "" : "?cluster=devnet"
+                      }`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {`${splTokenInfo?.symbol} (${splTokenInfo?.name})`}
+                    </Link>
+                  )}
+                </Typography>
+              </Stack>
+
               <TextField
                 label="Token Address"
                 variant="outlined"
                 fullWidth
                 value={splTokenAddress}
-                onChange={(e) => setSplTokenAddress(e.target.value)}
+                onChange={async (e) => {
+                  setSplTokenAddress(e.target.value);
+                  try {
+                    const info = await getSPLTokenInfo(
+                      e.target.value,
+                      isMainnet
+                    );
+                    console.info(info);
+                    setSplTokenInfo(info);
+                  } catch (e) {
+                    setSplTokenInfo(null);
+                  }
+                }}
                 sx={{ mt: 2 }}
               />
               <TextField
@@ -361,7 +415,7 @@ function App() {
                 onClick={transferSpl}
                 sx={{ mt: 2 }}
               >
-                Transfer
+                Transfer SPL
               </Button>
               {splTxhash && (
                 <Typography variant="body1">
@@ -375,6 +429,11 @@ function App() {
                   >
                     {splTxhash}
                   </Link>
+                </Typography>
+              )}
+              {splError && (
+                <Typography variant="body1" color="error">
+                  {splError}
                 </Typography>
               )}
 
