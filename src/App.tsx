@@ -244,7 +244,7 @@ function App() {
               {/* Wallet Details */}
               <Typography variant="h5" sx={{ mt: 4 }}>
                 Wallet Details on Solana{" "}
-                <b>{isMainnet ? "Mainnet" : "Testnet"}</b>
+                <b>{isMainnet ? "Mainnet" : "Devnet"}</b>
               </Typography>
               <Typography
                 variant="body1"
