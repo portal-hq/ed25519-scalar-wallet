@@ -10,6 +10,7 @@ module.exports = function override(config, env) {
     os: require.resolve("os-browserify/browser"),
     buffer: require.resolve("buffer"),
     path: require.resolve("path-browserify"),
+    vm: require.resolve("vm-browserify"),
   };
 
   config.plugins.push(
