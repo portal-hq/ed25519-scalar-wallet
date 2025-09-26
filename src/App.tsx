@@ -57,6 +57,9 @@ function App() {
     [key: string]: number;
   }>({});
   const [selectedTokenAddress, setSelectedTokenAddress] = useState<string>("");
+  const [tokenMetadata, setTokenMetadata] = useState<{
+    [key: string]: { name: string; symbol: string };
+  }>({});
 
   /*
    * Fetch SPL token balances when wallet address changes
@@ -67,6 +70,34 @@ function App() {
         try {
           const balances = await getSPLTokenBalances(walletAddress, isMainnet);
           setSplTokenBalances(balances);
+
+          // Fetch metadata for all tokens
+          const metadata: { [key: string]: { name: string; symbol: string } } =
+            {};
+          const tokenAddresses = Object.keys(balances);
+
+          // Fetch metadata for each token in parallel
+          const metadataPromises = tokenAddresses.map(async (address) => {
+            try {
+              const info = await getSPLTokenInfo(address, isMainnet);
+              metadata[address] = {
+                name: info.name || "Unknown Token",
+                symbol: info.symbol || "UNKNOWN",
+              };
+            } catch (error) {
+              console.warn(
+                `Failed to fetch metadata for token ${address}:`,
+                error
+              );
+              metadata[address] = {
+                name: "Unknown Token",
+                symbol: "UNKNOWN",
+              };
+            }
+          });
+
+          await Promise.all(metadataPromises);
+          setTokenMetadata(metadata);
         } catch (error) {
           console.error("Error fetching SPL token balances:", error);
         }
@@ -111,8 +142,53 @@ function App() {
 
     if (walletAddress && didChange) {
       setWalletBalance(null);
+      setSplTokenBalances({});
+      setTokenMetadata({});
+      setSelectedTokenAddress("");
+      setSplTokenInfo(null);
+
+      // Re-fetch SOL balance
       const solBalance = await getSolBalance(walletAddress, updatedIsMainnet);
       setWalletBalance(solBalance);
+
+      // Re-fetch SPL token balances and metadata
+      try {
+        const balances = await getSPLTokenBalances(
+          walletAddress,
+          updatedIsMainnet
+        );
+        setSplTokenBalances(balances);
+
+        // Fetch metadata for all tokens
+        const metadata: { [key: string]: { name: string; symbol: string } } =
+          {};
+        const tokenAddresses = Object.keys(balances);
+
+        // Fetch metadata for each token in parallel
+        const metadataPromises = tokenAddresses.map(async (address) => {
+          try {
+            const info = await getSPLTokenInfo(address, updatedIsMainnet);
+            metadata[address] = {
+              name: info.name || "Unknown Token",
+              symbol: info.symbol || "UNKNOWN",
+            };
+          } catch (error) {
+            console.warn(
+              `Failed to fetch metadata for token ${address}:`,
+              error
+            );
+            metadata[address] = {
+              name: "Unknown Token",
+              symbol: "UNKNOWN",
+            };
+          }
+        });
+
+        await Promise.all(metadataPromises);
+        setTokenMetadata(metadata);
+      } catch (error) {
+        console.error("Error fetching SPL token balances:", error);
+      }
     }
   };
 
@@ -372,32 +448,6 @@ function App() {
                 Transfer SPL Token
               </Typography>
 
-              <Stack
-                direction="row"
-                sx={{
-                  display: "flex",
-                  alignItems: { xs: "flex-start", md: "center" },
-                  justifyContent: "space-between",
-                  pt: 1.5,
-                }}
-                spacing={2}
-              >
-                <Typography variant="body1">
-                  Token:{" "}
-                  {!!splTokenInfo && splTokenInfo?.name !== "" && (
-                    <Link
-                      href={`https://explorer.solana.com/address/${selectedTokenAddress}${
-                        isMainnet ? "" : "?cluster=devnet"
-                      }`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {`${splTokenInfo?.symbol} (${splTokenInfo?.name})`}
-                    </Link>
-                  )}
-                </Typography>
-              </Stack>
-
               <FormControl fullWidth sx={{ mt: 2 }}>
                 <InputLabel>Select Token</InputLabel>
                 <Select
@@ -427,12 +477,18 @@ function App() {
                     <em>Select a token</em>
                   </MenuItem>
                   {Object.entries(splTokenBalances).map(
-                    ([address, balance]) => (
-                      <MenuItem key={address} value={address}>
-                        {address.slice(0, 8)}...{address.slice(-8)} (Balance:{" "}
-                        {balance})
-                      </MenuItem>
-                    )
+                    ([address, balance]) => {
+                      const metadata = tokenMetadata[address];
+                      const displayName = metadata
+                        ? `${metadata.symbol} (${metadata.name})`
+                        : `${address.slice(0, 8)}...${address.slice(-8)}`;
+
+                      return (
+                        <MenuItem key={address} value={address}>
+                          {displayName} - Balance: {balance}
+                        </MenuItem>
+                      );
+                    }
                   )}
                 </Select>
               </FormControl>
