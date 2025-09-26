@@ -70,6 +70,49 @@ export async function getSolBalance(
 }
 
 /*
+ * Fetches the balance of ALL SPL and SPL-22 Tokens owned by the given address.
+ */
+export async function getSPLTokenBalances(
+  address: string,
+  useMainnet: boolean
+): Promise<{ [key: string]: number }> {
+  const balances: { [key: string]: number } = {};
+  const network = getNetworkUrl(useMainnet);
+  const connection = new Connection(network);
+  // Fetch SPL tokens
+  const splTokenAccounts = await connection.getParsedTokenAccountsByOwner(
+    new PublicKey(address),
+    {
+      programId: TOKEN_PROGRAM_ID,
+    }
+  );
+
+  // Fetch SPL-2022 tokens
+  const spl2022TokenAccounts = await connection.getParsedTokenAccountsByOwner(
+    new PublicKey(address),
+    {
+      programId: TOKEN_2022_PROGRAM_ID,
+    }
+  );
+
+  // Process SPL tokens
+  splTokenAccounts.value.map((tokenAccount) => {
+    const balance = tokenAccount.account.data.parsed.info.tokenAmount.uiAmount;
+    balances[tokenAccount.account.data.parsed.info.mint.toString() || ""] =
+      balance;
+  });
+
+  // Process SPL-2022 tokens
+  spl2022TokenAccounts.value.map((tokenAccount) => {
+    const balance = tokenAccount.account.data.parsed.info.tokenAmount.uiAmount;
+    balances[tokenAccount.account.data.parsed.info.mint.toString() || ""] =
+      balance;
+  });
+
+  return balances;
+}
+
+/*
  * Derives a Solana public key from the given private key.
  */
 export async function getPublicKey(privateKey: string): Promise<string> {
