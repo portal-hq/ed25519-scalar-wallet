@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import {
   getPublicKey,
   getSolBalance,
+  getSPLTokenBalances,
   getSPLTokenInfo,
   signAndSendSolTransaction,
   signAndSendSPLTransferTransaction,
@@ -21,6 +22,10 @@ import {
   TextField,
   Link,
   useMediaQuery,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import { signAsync } from "./libs/ed25119-scalar";
 import * as bs58 from "bs58";
@@ -31,7 +36,9 @@ function App() {
 
   const isSmallScreen = useMediaQuery("(max-width:600px)"); // For screens smaller than 600px
 
-  const [scalarKey, setScalarKey] = useState<string>("");
+  const [scalarKey, setScalarKey] = useState<string>(
+    process.env.REACT_APP_TEST_SCALAR_KEY || ""
+  );
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [recipient, setRecipient] = useState<string>("");
@@ -46,6 +53,59 @@ function App() {
   const [signedMessage, setSignedMessage] = useState<string>("");
   const [splTokenAddress, setSplTokenAddress] = useState<string>("");
   const [splTokenInfo, setSplTokenInfo] = useState<any | null>(null);
+  const [splTokenBalances, setSplTokenBalances] = useState<{
+    [key: string]: number;
+  }>({});
+  const [selectedTokenAddress, setSelectedTokenAddress] = useState<string>("");
+  const [tokenMetadata, setTokenMetadata] = useState<{
+    [key: string]: { name: string; symbol: string };
+  }>({});
+
+  /*
+   * Fetch SPL token balances when wallet address changes
+   */
+  useEffect(() => {
+    const fetchSplBalances = async () => {
+      if (walletAddress) {
+        try {
+          const balances = await getSPLTokenBalances(walletAddress, isMainnet);
+          setSplTokenBalances(balances);
+
+          // Fetch metadata for all tokens
+          const metadata: { [key: string]: { name: string; symbol: string } } =
+            {};
+          const tokenAddresses = Object.keys(balances);
+
+          // Fetch metadata for each token in parallel
+          const metadataPromises = tokenAddresses.map(async (address) => {
+            try {
+              const info = await getSPLTokenInfo(address, isMainnet);
+              metadata[address] = {
+                name: info.name || "Unknown Token",
+                symbol: info.symbol || "UNKNOWN",
+              };
+            } catch (error) {
+              console.warn(
+                `Failed to fetch metadata for token ${address}:`,
+                error
+              );
+              metadata[address] = {
+                name: "Unknown Token",
+                symbol: "UNKNOWN",
+              };
+            }
+          });
+
+          await Promise.all(metadataPromises);
+          setTokenMetadata(metadata);
+        } catch (error) {
+          console.error("Error fetching SPL token balances:", error);
+        }
+      }
+    };
+
+    fetchSplBalances();
+  }, [walletAddress, isMainnet]);
 
   /*
    * Import the Solana wallet using the ed25519 scalar private key
@@ -82,8 +142,53 @@ function App() {
 
     if (walletAddress && didChange) {
       setWalletBalance(null);
+      setSplTokenBalances({});
+      setTokenMetadata({});
+      setSelectedTokenAddress("");
+      setSplTokenInfo(null);
+
+      // Re-fetch SOL balance
       const solBalance = await getSolBalance(walletAddress, updatedIsMainnet);
       setWalletBalance(solBalance);
+
+      // Re-fetch SPL token balances and metadata
+      try {
+        const balances = await getSPLTokenBalances(
+          walletAddress,
+          updatedIsMainnet
+        );
+        setSplTokenBalances(balances);
+
+        // Fetch metadata for all tokens
+        const metadata: { [key: string]: { name: string; symbol: string } } =
+          {};
+        const tokenAddresses = Object.keys(balances);
+
+        // Fetch metadata for each token in parallel
+        const metadataPromises = tokenAddresses.map(async (address) => {
+          try {
+            const info = await getSPLTokenInfo(address, updatedIsMainnet);
+            metadata[address] = {
+              name: info.name || "Unknown Token",
+              symbol: info.symbol || "UNKNOWN",
+            };
+          } catch (error) {
+            console.warn(
+              `Failed to fetch metadata for token ${address}:`,
+              error
+            );
+            metadata[address] = {
+              name: "Unknown Token",
+              symbol: "UNKNOWN",
+            };
+          }
+        });
+
+        await Promise.all(metadataPromises);
+        setTokenMetadata(metadata);
+      } catch (error) {
+        console.error("Error fetching SPL token balances:", error);
+      }
     }
   };
 
@@ -110,7 +215,7 @@ function App() {
    * Transfer SPL token to the recipient address.
    */
   const transferSpl = async () => {
-    if (!walletAddress || !splRecipient || !splTokenAddress) {
+    if (!walletAddress || !splRecipient || !selectedTokenAddress) {
       return;
     }
 
@@ -120,7 +225,7 @@ function App() {
         walletAddress,
         splRecipient,
         splTransferAmount,
-        splTokenAddress,
+        selectedTokenAddress,
         isMainnet
       );
       setSplTxhash(txhash);
@@ -343,52 +448,49 @@ function App() {
                 Transfer SPL Token
               </Typography>
 
-              <Stack
-                direction="row"
-                sx={{
-                  display: "flex",
-                  alignItems: { xs: "flex-start", md: "center" },
-                  justifyContent: "space-between",
-                  pt: 1.5,
-                }}
-                spacing={2}
-              >
-                <Typography variant="body1">
-                  Token:{" "}
-                  {!!splTokenInfo && splTokenInfo?.name !== "" && (
-                    <Link
-                      href={`https://explorer.solana.com/address/${splTokenAddress}${
-                        isMainnet ? "" : "?cluster=devnet"
-                      }`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {`${splTokenInfo?.symbol} (${splTokenInfo?.name})`}
-                    </Link>
-                  )}
-                </Typography>
-              </Stack>
+              <FormControl fullWidth sx={{ mt: 2 }}>
+                <InputLabel>Select Token</InputLabel>
+                <Select
+                  value={selectedTokenAddress}
+                  onChange={async (e) => {
+                    const tokenAddress = e.target.value as string;
+                    setSelectedTokenAddress(tokenAddress);
+                    setSplTokenAddress(tokenAddress);
+                    if (tokenAddress) {
+                      try {
+                        const info = await getSPLTokenInfo(
+                          tokenAddress,
+                          isMainnet
+                        );
+                        setSplTokenInfo(info);
+                      } catch (e) {
+                        setSplTokenInfo(null);
+                      }
+                    } else {
+                      setSplTokenInfo(null);
+                    }
+                  }}
+                  label="Select Token"
+                >
+                  <MenuItem value="">
+                    <em>Select a token</em>
+                  </MenuItem>
+                  {Object.entries(splTokenBalances).map(
+                    ([address, balance]) => {
+                      const metadata = tokenMetadata[address];
+                      const displayName = metadata
+                        ? `${metadata.symbol} (${metadata.name})`
+                        : `${address.slice(0, 8)}...${address.slice(-8)}`;
 
-              <TextField
-                label="Token Address"
-                variant="outlined"
-                fullWidth
-                value={splTokenAddress}
-                onChange={async (e) => {
-                  setSplTokenAddress(e.target.value);
-                  try {
-                    const info = await getSPLTokenInfo(
-                      e.target.value,
-                      isMainnet
-                    );
-                    console.info(info);
-                    setSplTokenInfo(info);
-                  } catch (e) {
-                    setSplTokenInfo(null);
-                  }
-                }}
-                sx={{ mt: 2 }}
-              />
+                      return (
+                        <MenuItem key={address} value={address}>
+                          {displayName} - Balance: {balance}
+                        </MenuItem>
+                      );
+                    }
+                  )}
+                </Select>
+              </FormControl>
               <TextField
                 label="Recipient Address"
                 variant="outlined"
