@@ -462,7 +462,6 @@ function App() {
                           tokenAddress,
                           isMainnet
                         );
-                        console.info(info);
                         setSplTokenInfo(info);
                       } catch (e) {
                         setSplTokenInfo(null);
