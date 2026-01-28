@@ -51,8 +51,6 @@ function App() {
   const [isMainnet, setIsMainnet] = useState<boolean>(true);
   const [message, setMessage] = useState<string>("");
   const [signedMessage, setSignedMessage] = useState<string>("");
-  const [splTokenAddress, setSplTokenAddress] = useState<string>("");
-  const [splTokenInfo, setSplTokenInfo] = useState<any | null>(null);
   const [splTokenBalances, setSplTokenBalances] = useState<{
     [key: string]: number;
   }>({});
@@ -145,7 +143,6 @@ function App() {
       setSplTokenBalances({});
       setTokenMetadata({});
       setSelectedTokenAddress("");
-      setSplTokenInfo(null);
 
       // Re-fetch SOL balance
       const solBalance = await getSolBalance(walletAddress, updatedIsMainnet);
@@ -452,23 +449,9 @@ function App() {
                 <InputLabel>Select Token</InputLabel>
                 <Select
                   value={selectedTokenAddress}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const tokenAddress = e.target.value as string;
                     setSelectedTokenAddress(tokenAddress);
-                    setSplTokenAddress(tokenAddress);
-                    if (tokenAddress) {
-                      try {
-                        const info = await getSPLTokenInfo(
-                          tokenAddress,
-                          isMainnet
-                        );
-                        setSplTokenInfo(info);
-                      } catch (e) {
-                        setSplTokenInfo(null);
-                      }
-                    } else {
-                      setSplTokenInfo(null);
-                    }
                   }}
                   label="Select Token"
                 >

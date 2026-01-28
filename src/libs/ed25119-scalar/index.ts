@@ -5,13 +5,15 @@
  * Original library: https://github.com/paulmillr/noble-ed25519
  */
 
-import { ExtendedPoint, etc, CURVE } from "@noble/ed25519";
+import { etc, Point, hashes } from "@noble/ed25519";
+
+const CURVE = Point.CURVE();
 
 type Bytes = Uint8Array;
 type Hex = Bytes | string;
 
 const N = CURVE.n;
-const G = ExtendedPoint.BASE;
+const G = Point.BASE;
 
 const err = (m = ""): never => {
   throw new Error(m);
@@ -43,23 +45,23 @@ const modL_LE = (hash: Bytes): bigint => etc.mod(b2n_LE(hash), N); // modulo L; 
 type ExtK = {
   prefix: Bytes;
   scalar: bigint;
-  point: ExtendedPoint;
+  point: Point;
   pointBytes: Bytes;
 };
 const getExtendedPublicKeyAsync = (priv: Bytes) =>
-  sha512a(priv).then((hashed) => hash2extK(priv, hashed));
+  sha512a(priv).then((hashed: Bytes) => hash2extK(priv, hashed));
 const getExtendedPublicKey = (priv: Bytes) => hash2extK(priv, sha512s(priv));
 
 const getPublicKeyAsync = (priv: Hex): Promise<Bytes> =>
-  getExtendedPublicKeyAsync(toU8(priv, 32)).then((p) => p.pointBytes);
+  getExtendedPublicKeyAsync(toU8(priv, 32)).then((p: ExtK) => p.pointBytes);
 const getPublicKey = (priv: Hex): Bytes =>
   getExtendedPublicKey(toU8(priv, 32)).pointBytes;
 
 const hash2extK = (priv: Bytes, hashed: Bytes): ExtK => {
   const prefix = hashed.slice(32, 64); // ignore the first 32 bytes generally used to generate scalar
   const scalar = modL_LE(priv); // interpret private key bytes directly as scalar
-  const point = G.mul(scalar); // public key point
-  const pointBytes = point.toRawBytes(); // point serialized to Uint8Array
+  const point = G.multiply(scalar); // public key point
+  const pointBytes = point.toBytes(); // point serialized to Uint8Array
   return { prefix, scalar, point, pointBytes };
 };
 
@@ -70,7 +72,7 @@ type Finishable<T> = {
 }; // hashable=start(); finish(hash(hashable));
 type Sha512FnSync = undefined | ((...messages: Bytes[]) => Bytes);
 let _shaS: Sha512FnSync;
-const sha512a = (...m: Bytes[]) => etc.sha512Async(...m); // Async SHA512
+const sha512a = (m: Bytes) => hashes.sha512Async(m); // Async SHA512
 const sha512s = (
   ...m: Bytes[] // Sync SHA512, not set by default
 ) =>
@@ -86,7 +88,7 @@ function hashFinish<T>(asynchronous: boolean, res: Finishable<T>) {
 const _sign = (e: ExtK, rBytes: Bytes, msg: Bytes): Finishable<Bytes> => {
   const { pointBytes: P, scalar: s } = e;
   const r = modL_LE(rBytes);
-  const R = G.mul(r).toRawBytes(); // R = [r]B
+  const R = G.multiply(r).toBytes(); // R = [r]B
   const hashable = etc.concatBytes(R, P, msg); // dom2(F, C) || R || A || PH(M)
   const finish = (hashed: Bytes): Bytes => {
     // k = SHA512(dom2(F, C) || R || A || PH(M))
@@ -98,7 +100,7 @@ const _sign = (e: ExtK, rBytes: Bytes, msg: Bytes): Finishable<Bytes> => {
 const signAsync = async (msg: Hex, privKey: Hex): Promise<Bytes> => {
   const m = toU8(msg); // RFC8032 5.1.6: sign msg with key async
   const e = await getExtendedPublicKeyAsync(toU8(privKey, 32)); // pub,prfx
-  const rBytes = await sha512a(e.prefix, m); // r = SHA512(dom2(F, C) || prefix || PH(M))
+  const rBytes = await sha512a(etc.concatBytes(e.prefix, m)); // r = SHA512(dom2(F, C) || prefix || PH(M))
   return hashFinish(true, _sign(e, rBytes, m)); // gen R, k, S, then 64-byte signature
 };
 const sign = (msg: Hex, privKey: Hex): Bytes => {
