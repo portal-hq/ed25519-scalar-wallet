@@ -96,14 +96,14 @@ export async function getSPLTokenBalances(
   );
 
   // Process SPL tokens
-  splTokenAccounts.value.map((tokenAccount) => {
+  splTokenAccounts.value.forEach((tokenAccount) => {
     const balance = tokenAccount.account.data.parsed.info.tokenAmount.uiAmount;
     balances[tokenAccount.account.data.parsed.info.mint.toString() || ""] =
       balance;
   });
 
   // Process SPL-2022 tokens
-  spl2022TokenAccounts.value.map((tokenAccount) => {
+  spl2022TokenAccounts.value.forEach((tokenAccount) => {
     const balance = tokenAccount.account.data.parsed.info.tokenAmount.uiAmount;
     balances[tokenAccount.account.data.parsed.info.mint.toString() || ""] =
       balance;
