@@ -23,38 +23,4 @@ module.exports = {
 
     return config;
   },
-  devServer: function (configFunction) {
-    return function (proxy, allowedHost) {
-      const config = configFunction(proxy, allowedHost);
-
-      const {
-        onAfterSetupMiddleware,
-        onBeforeSetupMiddleware,
-        https: httpsConfig,
-        ...rest
-      } = config;
-
-      const patched = {
-        ...rest,
-        setupMiddlewares(middlewares, devServer) {
-          if (onBeforeSetupMiddleware) {
-            onBeforeSetupMiddleware(devServer);
-          }
-          if (onAfterSetupMiddleware) {
-            onAfterSetupMiddleware(devServer);
-          }
-          return middlewares;
-        },
-      };
-
-      if (httpsConfig) {
-        patched.server =
-          typeof httpsConfig === "object"
-            ? { type: "https", options: httpsConfig }
-            : { type: "https" };
-      }
-
-      return patched;
-    };
-  },
 };
