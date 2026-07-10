@@ -24,8 +24,8 @@ This is a React-based web application that serves as a client-side wallet for Ed
 3. (Optional) Set up environment variables for custom RPC endpoints in a `.env` file:
 
    ```
-   REACT_APP_SOLANA_DEVNET_RPC_URL=https://api.devnet.solana.com
-   REACT_APP_SOLANA_MAINNET_RPC_URL=https://api.mainnet-beta.solana.com
+   VITE_SOLANA_DEVNET_RPC_URL=https://api.devnet.solana.com
+   VITE_SOLANA_MAINNET_RPC_URL=https://api.mainnet-beta.solana.com
    ```
 
    If not set, defaults to public Solana RPC URLs.

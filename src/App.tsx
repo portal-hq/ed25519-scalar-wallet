@@ -37,7 +37,7 @@ function App() {
   const isSmallScreen = useMediaQuery("(max-width:600px)"); // For screens smaller than 600px
 
   const [scalarKey, setScalarKey] = useState<string>(
-    process.env.REACT_APP_TEST_SCALAR_KEY || ""
+    import.meta.env.VITE_TEST_SCALAR_KEY || ""
   );
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
