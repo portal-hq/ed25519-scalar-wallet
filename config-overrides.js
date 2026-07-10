@@ -1,6 +1,6 @@
 const webpack = require("webpack");
 
-module.exports = function override(config, env) {
+function override(config, env) {
   config.resolve.fallback = {
     crypto: require.resolve("crypto-browserify"),
     stream: require.resolve("stream-browserify"),
@@ -21,4 +21,38 @@ module.exports = function override(config, env) {
   );
 
   return config;
-};
+}
+
+function devServer(configFunction) {
+  return function configureDevServer(proxy, allowedHost) {
+    const config = configFunction(proxy, allowedHost);
+    const before = config.onBeforeSetupMiddleware;
+    const after = config.onAfterSetupMiddleware;
+
+    if (config.https) {
+      config.server = { type: "https", options: config.https };
+    }
+
+    delete config.onBeforeSetupMiddleware;
+    delete config.onAfterSetupMiddleware;
+    delete config.https;
+
+    config.setupMiddlewares = (middlewares, server) => {
+      const originalUse = server.app.use.bind(server.app);
+      const beforeMiddlewares = [];
+      const afterMiddlewares = [];
+
+      server.app.use = (...args) => beforeMiddlewares.push(args);
+      before(server);
+      server.app.use = (...args) => afterMiddlewares.push(args);
+      after(server);
+      server.app.use = originalUse;
+
+      return [...beforeMiddlewares, ...middlewares, ...afterMiddlewares];
+    };
+
+    return config;
+  };
+}
+
+module.exports = { webpack: override, devServer };
