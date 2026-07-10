@@ -24,8 +24,8 @@ This is a React-based web application that serves as a client-side wallet for Ed
 3. (Optional) Set up environment variables for custom RPC endpoints in a `.env` file:
 
    ```
-   REACT_APP_SOLANA_DEVNET_RPC_URL=https://api.devnet.solana.com
-   REACT_APP_SOLANA_MAINNET_RPC_URL=https://api.mainnet-beta.solana.com
+   VITE_SOLANA_DEVNET_RPC_URL=https://api.devnet.solana.com
+   VITE_SOLANA_MAINNET_RPC_URL=https://api.mainnet-beta.solana.com
    ```
 
    If not set, defaults to public Solana RPC URLs.
@@ -38,7 +38,7 @@ This is a React-based web application that serves as a client-side wallet for Ed
    yarn start
    ```
 
-2. Open `http://localhost:3000` in your browser.
+2. Open the local URL printed by Vite (by default, `http://localhost:5173`).
 
 3. Use the web interface to input your base58-encoded scalar private key and perform actions like checking balances or sending transactions.
 

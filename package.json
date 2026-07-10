@@ -5,91 +5,43 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/material": "^7.3.7",
-    "@noble/ed25519": "^3.0.0",
-    "@solana/spl-token": "^0.4.14",
+    "@mui/material": "^7.3.11",
+    "@noble/ed25519": "^3.1.0",
+    "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.98.4",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^25.0.10",
-    "@types/react": "^19.2.10",
-    "@types/react-dom": "^19.2.3",
     "base-x": "^5.0.1",
     "bs58": "^6.0.0",
     "buffer": "^6.0.3",
-    "crypto-browserify": "^3.12.0",
-    "dotenv": "^17.2.3",
-    "glob": "^13.0.0",
-    "https-browserify": "^1.0.0",
-    "os-browserify": "^0.3.0",
-    "path-browserify": "^1.0.1",
-    "path-to-regexp": "8.3.0",
-    "postcss": "^8.5.6",
     "process": "^0.11.10",
-    "react": "^19.2.4",
-    "react-app-rewired": "^2.2.1",
-    "react-dom": "^19.2.4",
-    "react-scripts": "5.0.1",
-    "serialize-javascript": "^7.0.3",
-    "stream-browserify": "^3.0.0",
-    "stream-http": "^3.2.0",
-    "typescript": "^5.9.3",
-    "vm-browserify": "^1.1.2",
-    "web-vitals": "^5.1.0"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
+    "@types/node": "^25.0.10",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.4",
+    "vite-plugin-node-polyfills": "^0.28.0",
+    "vitest": "^4.1.10"
   },
   "scripts": {
-    "start": "react-app-rewired start",
-    "build": "react-app-rewired build",
-    "test": "react-app-rewired test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "start": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run --passWithNoTests",
+    "preview": "vite preview"
   },
   "resolutions": {
     "@solana/spl-token/**/base-x": "^3.0.11",
     "@solana/web3.js/**/base-x": "^3.0.11",
     "bs58/base-x": "^5.0.1",
-    "glob": "^13.0.0",
-    "js-yaml": "^4.1.1",
-    "nth-check": "^2.0.1",
-    "on-headers": "^1.1.0",
-    "path-to-regexp": "8.3.0",
-    "postcss": "^8.5.6",
-    "serialize-javascript": "^7.0.3",
-    "minimatch": "^3.1.5",
-    "glob/minimatch": "^10.2.3",
-    "filelist/minimatch": "^5.1.8",
-    "@isaacs/brace-expansion": "^5.0.1",
     "bn.js": "^4.12.3",
     "@solana/web3.js/**/bn.js": "^5.2.3",
     "@solana/spl-token/**/bn.js": "^5.2.3",
     "borsh/bn.js": "^5.2.3",
-    "browserify-rsa/bn.js": "^5.2.3",
-    "browserify-sign/bn.js": "^5.2.3",
-    "qs": "^6.14.2",
-    "rollup": "^2.80.0",
-    "jsonpath": "^1.2.0",
-    "webpack-dev-server": "^5.2.1"
+    "uuid": "^11.1.1",
+    "ws": "^8.21.0",
+    "form-data": "^4.0.4"
   }
 }

@@ -24,10 +24,10 @@ import {
 } from "@solana/spl-token";
 
 const DEVNET_URL =
-  process.env.REACT_APP_SOLANA_DEVNET_RPC_URL ||
+  import.meta.env.VITE_SOLANA_DEVNET_RPC_URL ||
   "https://api.devnet.solana.com";
 const MAINNET_URL =
-  process.env.REACT_APP_SOLANA_MAINNET_RPC_URL ||
+  import.meta.env.VITE_SOLANA_MAINNET_RPC_URL ||
   "https://api.mainnet-beta.solana.com";
 
 const getNetworkUrl = (useMainnet: boolean) => {
