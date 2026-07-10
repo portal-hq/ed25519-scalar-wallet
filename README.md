@@ -38,7 +38,7 @@ This is a React-based web application that serves as a client-side wallet for Ed
    yarn start
    ```
 
-2. Open `http://localhost:3000` in your browser.
+2. Open the local URL printed by Vite (by default, `http://localhost:5173`).
 
 3. Use the web interface to input your base58-encoded scalar private key and perform actions like checking balances or sending transactions.
 
